@@ -11,7 +11,11 @@ IUU fishing accounts for ~20% of global catch, devastating marine ecosystems, ec
 Primary Domain: Geospatial ML + Computer Vision + Time Series.
 
 ## Model Architecture: 
-A two-stage multimodal model. Stage 1: A Vision Transformer (ViT) or U-Net processes Sentinel-1 (SAR) and Sentinel-2 (optical) imagery to detect vessel presence in "dark" areas (AIS off). Stage 2: A Temporal Fusion Transformer (TFT) ingests sequential AIS data, historical IUU reports, and oceanographic data (sea temp, chlorophyll) to classify vessel behavior (loitering, transshipment) and predict high-risk zones.
+A two-stage multimodal model. 
+### Stage 1: A Vision Transformer (ViT) or U-Net processes Sentinel-1 (SAR) and Sentinel-2 (optical) imagery to detect vessel presence in "dark" areas (AIS off). 
+### Stage 2: A Temporal Fusion Transformer (TFT) ingests sequential AIS data, historical IUU reports, and oceanographic data (sea temp, chlorophyll) to classify vessel behavior (loitering, transshipment) and predict high-risk zones.
+
+**[Subject to change]**
 
 ## The Data Strategy:
 
