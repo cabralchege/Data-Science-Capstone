@@ -60,3 +60,22 @@ def fetch_ais_data(bbox, target_date):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(fetch_ais_data_async(bbox, start_time, end_time))
+
+import random
+
+import random
+
+def simulate_ais_points(bbox, num_points=10):
+    """Generates fake AIS points for testing when real data is turned off."""
+    min_lon, min_lat, max_lon, max_lat = bbox
+    points = []
+    for i in range(num_points):
+        points.append({
+            'lon': random.uniform(min_lon, max_lon),
+            'lat': random.uniform(min_lat, max_lat),
+            'mmsi': f"MOCK_{random.randint(100000, 999999)}",
+            'name': f"Simulated Vessel {i+1}",
+            'speed': random.uniform(0, 20),
+            'course': random.uniform(0, 360)
+        })
+    return points

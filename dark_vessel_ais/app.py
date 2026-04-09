@@ -25,6 +25,16 @@ def analyze_location(lat, lon, date_str, buffer_km, use_sahi, radius_km, use_rea
         os.unlink(img_path)
         return "No vessels detected.", None, None
     
+    # --- NEW: Draw bounding boxes on the image for the UI ---
+    annotated_img = cv2.imread(img_path)
+    for box in boxes:
+        x1, y1, x2, y2 = map(int, box)
+        cv2.rectangle(annotated_img, (x1, y1), (x2, y2), (0, 0, 255), 2) # Draw Red boxes
+    
+    annotated_img_path = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False).name
+    cv2.imwrite(annotated_img_path, annotated_img)
+    # --------------------------------------------------------
+
     # Convert to geographic coordinates
     centers = get_detection_centers(boxes, img_w, img_h, bbox)
     
@@ -83,7 +93,8 @@ def analyze_location(lat, lon, date_str, buffer_km, use_sahi, radius_km, use_rea
     # Cleanup
     os.unlink(img_path)
     
-    return report, map_path, thumb_url
+    # RETURN THE ANNOTATED IMAGE INSTEAD OF THE THUMBNAIL URL
+    return report, map_path, annotated_img_path
 
 # Simple Gradio Interface
 iface = gr.Interface(
@@ -107,4 +118,4 @@ iface = gr.Interface(
 )
 
 if __name__ == "__main__":
-    iface.launch(server_name="0.0.0.0", server_port=7861, share=True)
+    iface.launch(server_name="0.0.0.0", server_port=7862, share=True)

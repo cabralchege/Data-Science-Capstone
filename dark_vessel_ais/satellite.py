@@ -1,64 +1,60 @@
-import ee
-import geemap
+import requests
 import datetime
 import tempfile
-import os
-
-def initialize_gee():
-    """Initialize Earth Engine. Run `earthengine authenticate` once first."""
-    try:
-        ee.Initialize()
-    except Exception:
-        print("Earth Engine not initialized. Run: earthengine authenticate")
-        raise
 
 def get_satellite_image(lat, lon, date_str, buffer_km=10):
     """
-    Fetch a recent Sentinel-2 image for a point and date.
-    Returns: (image_path, thumbnail_url, bbox, capture_date)
+    Fetches a free Sentinel-2 image using Microsoft Planetary Computer Open Data.
+    No API keys, no accounts, no billing required.
     """
-    initialize_gee()
+    print(f"📡 Fetching free open-source satellite data for {date_str}...")
     
-    # Parse date
-    date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-    start_date = (date - datetime.timedelta(days=15)).strftime("%Y-%m-%d")
-    end_date = (date + datetime.timedelta(days=15)).strftime("%Y-%m-%d")
+    # 1. Calculate a rough Bounding Box based on the buffer
+    # 1 degree of latitude/longitude is roughly 111 km
+    offset = (buffer_km / 111.0)
+    bbox = [lon - offset, lat - offset, lon + offset, lat + offset]
+
+    # 2. Format Dates (Search 15 days prior to the target date for a clear image)
+    target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+    start_date = (target_date - datetime.timedelta(days=15)).strftime("%Y-%m-%dT00:00:00Z")
+    end_date = target_date.strftime("%Y-%m-%dT23:59:59Z")
+    time_range = f"{start_date}/{end_date}"
+
+    # 3. Query the Open Data API
+    url = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
+    payload = {
+        "collections": ["sentinel-2-l2a"],
+        "bbox": bbox,
+        "datetime": time_range,
+        "query": {"eo:cloud_cover": {"lt": 20}}, # Less than 20% clouds
+        "limit": 1
+    }
     
-    # Region of interest (square buffer)
-    region = ee.Geometry.Point([lon, lat]).buffer(buffer_km * 1000).bounds()
-    
-    # Get bounding box coordinates
-    coords = region.coordinates().getInfo()[0]
-    min_lon = min(c[0] for c in coords)
-    max_lon = max(c[0] for c in coords)
-    min_lat = min(c[1] for c in coords)
-    max_lat = max(c[1] for c in coords)
-    bbox = (min_lon, min_lat, max_lon, max_lat)
-    
-    # Load Sentinel-2 surface reflectance
-    collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-                  .filterBounds(region)
-                  .filterDate(start_date, end_date)
-                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)))
-    
-    # Get first image
-    image = collection.first()
-    if image is None:
+    try:
+        response = requests.post(url, json=payload, timeout=15)
+        data = response.json()
+        
+        if "features" not in data or len(data["features"]) == 0:
+            print("❌ No clear images found. Try increasing the cloud limit or changing the date.")
+            return None, None, bbox, None
+            
+        item = data["features"][0]
+        
+        # 4. Get the pre-rendered visual thumbnail link
+        img_url = item["assets"]["rendered_preview"]["href"]
+        capture_date = item["properties"]["datetime"][:10]
+        
+        # 5. Download the image locally for YOLO to process
+        print("📥 Downloading image for YOLO processing...")
+        img_response = requests.get(img_url)
+        output_path = tempfile.NamedTemporaryFile(suffix='.png', delete=False).name
+        
+        with open(output_path, 'wb') as f:
+            f.write(img_response.content)
+            
+        print("✅ Image downloaded successfully!")
+        return output_path, img_url, bbox, capture_date
+        
+    except Exception as e:
+        print(f"❌ API Error: {e}")
         return None, None, bbox, None
-    
-    # Get capture date
-    capture_date = ee.Date(image.get('system:time_start')).format('YYYY-MM-dd').getInfo()
-    
-    # Download as GeoTIFF
-    output_path = tempfile.NamedTemporaryFile(suffix='.tif', delete=False).name
-    geemap.download_ee_image(image, filename=output_path, region=region, scale=10)
-    
-    # Thumbnail URL for preview
-    url = image.getThumbURL({
-        'min': 0, 'max': 3000, 
-        'bands': ['B4', 'B3', 'B2'], 
-        'dimensions': 512, 
-        'format': 'png'
-    })
-    
-    return output_path, url, bbox, capture_date
