@@ -7,7 +7,7 @@ def get_satellite_image(lat, lon, date_str, buffer_km=10):
     Fetches a free Sentinel-2 image using Microsoft Planetary Computer Open Data.
     No API keys, no accounts, no billing required.
     """
-    print(f"📡 Fetching free open-source satellite data for {date_str}...")
+    print(f"Fetching free open-source satellite data for {date_str}...")
     
     # 1. Calculate a rough Bounding Box based on the buffer
     # 1 degree of latitude/longitude is roughly 111 km
@@ -35,7 +35,7 @@ def get_satellite_image(lat, lon, date_str, buffer_km=10):
         data = response.json()
         
         if "features" not in data or len(data["features"]) == 0:
-            print("❌ No clear images found. Try increasing the cloud limit or changing the date.")
+            print("No clear images found. Try increasing the cloud limit or changing the date.")
             return None, None, bbox, None
             
         item = data["features"][0]
@@ -45,16 +45,16 @@ def get_satellite_image(lat, lon, date_str, buffer_km=10):
         capture_date = item["properties"]["datetime"][:10]
         
         # 5. Download the image locally for YOLO to process
-        print("📥 Downloading image for YOLO processing...")
+        print("Downloading image for YOLO processing...")
         img_response = requests.get(img_url)
         output_path = tempfile.NamedTemporaryFile(suffix='.png', delete=False).name
         
         with open(output_path, 'wb') as f:
             f.write(img_response.content)
             
-        print("✅ Image downloaded successfully!")
+        print("Image downloaded successfully!")
         return output_path, img_url, bbox, capture_date
         
     except Exception as e:
-        print(f"❌ API Error: {e}")
+        print(f"API Error: {e}")
         return None, None, bbox, None
